@@ -1,55 +1,73 @@
+import pathlib
+import pandas as pd
 import streamlit as st
-import requests
+import joblib
 
-# FastAPI backend URL
-API_URL = "http://127.0.0.1:8000/predict"
+st.set_page_config(page_title="Heart Disease Prediction", page_icon="❤️", layout="centered")
 
-# Streamlit app title
-st.title("Heart Disease Prediction App")
+MODEL_PATH = pathlib.Path(__file__).parent / "models" / "best_model.pkl"
 
-# Input fields for user data
-st.header("Enter Patient Data")
-age = st.number_input("Age", min_value=20, max_value=80, step=1)
-sex = st.selectbox("Sex", options=[0, 1], format_func=lambda x: "Female" if x == 0 else "Male")
-chest_pain_type = st.selectbox("Chest Pain Type (0-3)", options=[0, 1, 2, 3])
-resting_blood_pressure = st.number_input("Resting Blood Pressure (mm Hg)", min_value=80, max_value=200, step=1)
-cholesterol = st.number_input("Cholesterol (mg/dl)", min_value=100, max_value=600, step=1)
-fasting_blood_sugar = st.selectbox("Fasting Blood Sugar > 120 mg/dl (0/1)", options=[0, 1])
-resting_ecg = st.selectbox("Resting ECG Results (0-2)", options=[0, 1, 2])
-max_heart_rate = st.number_input("Maximum Heart Rate Achieved", min_value=60, max_value=220, step=1)
-exercise_induced_angina = st.selectbox("Exercise-Induced Angina (0/1)", options=[0, 1])
-st_depression = st.number_input("ST Depression Induced by Exercise", min_value=0.0, max_value=6.0, step=0.1)
-st_slope = st.selectbox("Slope of Peak Exercise ST Segment (0-2)", options=[0, 1, 2])
-num_major_vessels = st.selectbox("Number of Major Vessels (0-3)", options=[0, 1, 2, 3])
-thalassemia = st.selectbox("Thalassemia Test Result (0-3)", options=[0, 1, 2, 3])
-
-# Submit button
-if st.button("Predict"):
-    # Prepare input data for the FastAPI backend
-    input_data = {
-        "age": age,
-        "sex": sex,
-        "chest_pain_type": chest_pain_type,
-        "resting_blood_pressure": resting_blood_pressure,
-        "cholesterol": cholesterol,
-        "fasting_blood_sugar": fasting_blood_sugar,
-        "resting_ecg": resting_ecg,
-        "max_heart_rate": max_heart_rate,
-        "exercise_induced_angina": exercise_induced_angina,
-        "st_depression": st_depression,
-        "st_slope": st_slope,
-        "num_major_vessels": num_major_vessels,
-        "thalassemia": thalassemia,
-    }
-
-    # Send a POST request to the FastAPI backend
+@st.cache_resource
+def load_model():
     try:
-        response = requests.post(API_URL, json=input_data)
-        if response.status_code == 200:
-            result = response.json()
-            st.success(f"Prediction: {'Disease' if result['prediction'] == 1 else 'No Disease'}")
-            st.info(f"Risk Score: {result['risk_score']:.2f}")
-        else:
-            st.error(f"Error: {response.status_code} - {response.text}")
+        return joblib.load(MODEL_PATH)
     except Exception as e:
-        st.error(f"Failed to connect to the API: {e}")
+        st.error(f"Failed to load model at {MODEL_PATH}: {e}")
+        return None
+
+model = load_model()
+
+st.title("Heart Disease Prediction")
+st.caption("Local inference (no FastAPI call)")
+
+with st.form("input_form"):
+    col1, col2 = st.columns(2)
+    age = col1.number_input("Age (20-80)", 20, 80, 50)
+    sex = col2.selectbox("Sex", [0, 1], format_func=lambda v: "Female" if v == 0 else "Male")
+    chest_pain_type = col1.selectbox("Chest Pain Type (0–3)", [0, 1, 2, 3])
+    resting_blood_pressure = col2.number_input("Resting BP (80–200)", 80, 200, 120)
+    cholesterol = col1.number_input("Cholesterol (100–600)", 100, 600, 200)
+    fasting_blood_sugar = col2.selectbox("Fasting Blood Sugar >120 (0/1)", [0, 1])
+    resting_ecg = col1.selectbox("Resting ECG (0–2)", [0, 1, 2])
+    max_heart_rate = col2.number_input("Max Heart Rate (60–220)", 60, 220, 150)
+    exercise_induced_angina = col1.selectbox("Exercise Induced Angina (0/1)", [0, 1])
+    st_depression = col2.number_input("ST Depression (0.0–6.0)", 0.0, 6.0, 1.0, step=0.1)
+    st_slope = col1.selectbox("ST Slope (0–2)", [0, 1, 2])
+    num_major_vessels = col2.selectbox("Num Major Vessels (0–3)", [0, 1, 2, 3])
+    thalassemia = col1.selectbox("Thalassemia (0–3)", [0, 1, 2, 3])
+    submitted = st.form_submit_button("Predict")
+
+if submitted:
+    if model is None:
+        st.error("Model not available.")
+    else:
+        row = {
+            "age": age,
+            "sex": sex,
+            "chest_pain_type": chest_pain_type,
+            "resting_blood_pressure": resting_blood_pressure,
+            "cholesterol": cholesterol,
+            "fasting_blood_sugar": fasting_blood_sugar,
+            "resting_ecg": resting_ecg,
+            "max_heart_rate": max_heart_rate,
+            "exercise_induced_angina": exercise_induced_angina,
+            "st_depression": st_depression,
+            "st_slope": st_slope,
+            "num_major_vessels": num_major_vessels,
+            "thalassemia": thalassemia
+        }
+        df = pd.DataFrame([row])
+        try:
+            proba = model.predict_proba(df)[:, 1][0]
+            pred = 1 if proba >= 0.5 else 0
+            st.success(f"Prediction: {'Disease' if pred == 1 else 'No Disease'}")
+            st.metric("Risk Score", f"{proba:.3f}")
+        except Exception as e:
+            st.error(f"Inference error: {e}")
+
+st.markdown("----")
+st.caption("If you prefer using the FastAPI backend, deploy it separately and change this app to call its public URL.")
+
+# Example (if you deploy FastAPI):
+# API_URL = "https://your-fastapi-host/predict"
+# Use requests.post(API_URL, json=row)
