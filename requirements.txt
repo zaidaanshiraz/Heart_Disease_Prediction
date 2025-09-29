@@ -1,0 +1,12 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+seaborn
+scipy
+fastapi
+uvicorn
+pydantic
+joblib  # Used for saving/loading models and scalers
+streamlit  # For the Streamlit frontend
+requests 
