@@ -66,6 +66,19 @@ if submitted:
             st.error(f"Inference error: {e}")
 
 st.markdown("----")
+
+# Add Model Evaluation & Performance Analysis table (as per your request)
+st.markdown("""
+### Model Evaluation & Performance Analysis
+
+| Model               | Accuracy | Precision | Recall | F1 Score | ROC-AUC | True Healthy | False Sick | False Healthy | True Sick |
+|---------------------|----------|-----------|--------|----------|---------|--------------|------------|---------------|-----------|
+| Logistic Regression | 68.8%    | 76.9%     | 65.2%  | 70.6%    | 71.1%   | 25           | 9          | 16            | 30        |
+| Random Forest       | 62.5%    | 66.7%     | 69.6%  | 68.1%    | 61.9%   | 18           | 16         | 14            | 32        |
+| SVM                 | 57.5%    | 63.0%     | 63.0%  | 63.0%    | 63.7%   | 17           | 17         | 17            | 29        |
+| Decision Tree       | 55.0%    | 60.4%     | 63.0%  | 61.7%    | 53.6%   | 15           | 19         | 17            | 29        |
+""")
+
 st.caption("If you prefer using the FastAPI backend, deploy it separately and change this app to call its public URL.")
 
 # Example (if you deploy FastAPI):
